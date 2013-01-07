@@ -1,0 +1,103 @@
+#!/bin/bash
+# set -xv
+
+declare -a URL
+declare -a CHANNEL
+declare -a RTMP
+
+COLUMN=4
+
+if [ $1 ];
+then
+	echo "NO VO~"
+	NOV="-vo /dev/null"
+fi
+
+PLAYER="mplayer ${NOV}"
+
+list_channel()
+{
+	i=1
+	for ((i; i<=${#URL[*]}; i++))
+	do
+		printf "$i ${CHANNEL[i]}\t"
+		if [ $(($i % ${COLUMN})) -eq 0 ];
+		then
+			printf "\n"
+		fi
+	done
+	let --i
+	if [ $(($i % ${COLUMN})) -ne 0 ];
+	then
+		printf "\n"
+	fi
+}
+
+index=1
+while read LINE
+do
+	#echo ${LINE}
+	if [[ "${LINE}" =~ "#" ]];
+       	then
+		continue
+	else
+		URL[index]=$(echo ${LINE} | awk -F'%' '{print $1}')
+		CHANNEL[index]=$(echo ${LINE} | awk -F'%' '{print $2}')
+		#echo ${URL[i]}
+		#echo ${CHANNEL[i]}
+		let ++index
+	fi
+done < sop.list
+
+list_channel
+
+while(true)
+do
+	while read OPTION
+	do
+		if [ ${OPTION} = "rtmp" ];
+		then
+			eval "${RTMP[1]}"
+		elif [ ${OPTION} = "c" ];
+		then
+			CACHE="-cache 4096"
+		elif [ ${OPTION} = "d" ];
+		then
+			CACHE=""
+		elif [ ${OPTION} = "r" ];
+		then
+			ASPECT="-aspect 16:9"
+		elif [ ${OPTION} = "o" ];
+		then
+			ASPECT=""
+		elif [ ${OPTION} = "n" ];
+		then
+			VO="-vo /dev/null"
+		elif [ ${OPTION} = "m" ];
+		then
+			PLAYER="mplayer"
+			VO=""
+		elif [ ${OPTION} = "t" ];
+		then
+			PLAYER="tsocks ${PLAYER}"
+		elif [ ${OPTION} = "v" ];
+		then
+			PLAYER="vlc"
+		else
+			#$PLAYER ${URL[${OPTION}]} ${ASPECT} ${CACHE} ${VO}
+			~/bin/sp-sc-auth ${URL[${OPTION}]} 54321 12345 > /dev/null 2>&1 &
+			SP_PID=$!
+			sleep 20
+			vlc http://localhost:12345
+			kill -9 ${SP_PID}
+			list_channel
+		fi
+#		if [ -z ${URL[${OPTION}]} ];
+#		then
+#			list_channel
+#		else
+#			$PLAYER ${URL[${OPTION}]}
+#			list_channel
+#		fi
+	done
+done
